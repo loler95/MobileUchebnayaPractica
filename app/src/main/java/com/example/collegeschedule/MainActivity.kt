@@ -1,4 +1,3 @@
-package com.example.collegeschedule
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,13 +16,18 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import com.example.collegeschedule.data.api.ScheduleApi
+import com.example.collegeschedule.data.repository.ScheduleRepository
+import com.example.collegeschedule.ui.schedule.ScheduleScreen
 import com.example.collegeschedule.ui.theme.CollegeScheduleTheme
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,7 +44,18 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun CollegeScheduleApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var currentDestination by rememberSaveable {
+        mutableStateOf(AppDestinations.HOME) }
+
+    val retrofit = remember {
+        Retrofit.Builder()
+            .baseUrl("http://10.0.2.2:5268/") // localhost для Android Emulator 
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    val api = remember { retrofit.create(ScheduleApi::class.java) }
+    val repository = remember { ScheduleRepository(api) }
+
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -60,10 +75,17 @@ fun CollegeScheduleApp() {
         }
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Greeting(
-                name = "Android",
-                modifier = Modifier.padding(innerPadding)
-            )
+            when (currentDestination) {
+                AppDestinations.HOME -> ScheduleScreen()
+
+                AppDestinations.FAVORITES ->
+                    Text("Избранные группы", modifier =
+                        Modifier.padding(innerPadding))
+
+                AppDestinations.PROFILE ->
+                    Text("Профиль студента", modifier =
+                        Modifier.padding(innerPadding))
+            }
         }
     }
 }
@@ -75,20 +97,4 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home),
     FAVORITES("Favorites", Icons.Default.Favorite),
     PROFILE("Profile", Icons.Default.AccountBox),
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CollegeScheduleTheme {
-        Greeting("Android")
-    }
 }
