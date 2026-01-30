@@ -81,10 +81,6 @@ fun CollegeScheduleApp() {
                 AppDestinations.FAVORITES ->
                     Text("Избранные группы", modifier =
                         Modifier.padding(innerPadding))
-
-                AppDestinations.PROFILE ->
-                    Text("Профиль студента", modifier =
-                        Modifier.padding(innerPadding))
             }
         }
     }
@@ -96,5 +92,4 @@ enum class AppDestinations(
 ) {
     HOME("Home", Icons.Default.Home),
     FAVORITES("Favorites", Icons.Default.Favorite),
-    PROFILE("Profile", Icons.Default.AccountBox),
 }
