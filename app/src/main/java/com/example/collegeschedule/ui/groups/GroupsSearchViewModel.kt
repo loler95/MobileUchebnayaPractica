@@ -12,38 +12,59 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+import com.example.collegeschedule.data.repository.FavoritesRepository
+import kotlinx.coroutines.flow.StateFlow
 data class HomeState(
     val searchQuery: String = "",
     val selectedCourse: Int? = null,
     val selectedSpeciality: String? = null,
     val groups: List<GroupsDto> = emptyList(),
-    val favoriteGroups: SnapshotStateList<String> = mutableStateListOf(),
+    val favoriteGroups: List<GroupsDto> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val selectedGroup: GroupsDto? = null
 )
 
 class GroupsSearchViewModel(
-    private val repository: ScheduleRepository
+    private val repository: ScheduleRepository,
+    private val favoritesRepository: FavoritesRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<HomeState> = _state.asStateFlow()
 
     private var searchJob: Job? = null
 
     init {
         loadAllGroups()
+        loadFavorites()
+    }
+
+    private fun loadFavorites() {
+        viewModelScope.launch {
+            favoritesRepository.favorites.collect { favorites ->
+                _state.update { currentState ->
+                    currentState.copy(favoriteGroups = favorites)
+                }
+            }
+        }
+    }
+
+    fun toggleFavorite(group: GroupsDto) {
+        viewModelScope.launch {
+            favoritesRepository.toggleFavorite(group)
+        }
+    }
+
+    fun isFavorite(groupName: String): Boolean {
+        return favoritesRepository.isFavorite(groupName)
     }
 
     fun onSearchQueryChanged(query: String) {
         _state.update { it.copy(searchQuery = query) }
-
         searchJob?.cancel()
-
         searchJob = viewModelScope.launch {
-            delay(500) // Дебаунс
+            delay(500)
             searchGroups()
         }
     }
@@ -51,14 +72,12 @@ class GroupsSearchViewModel(
     fun searchGroups() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-
             try {
                 val groups = repository.getGroups(
                     course = _state.value.selectedCourse,
                     speciality = _state.value.selectedSpeciality
                 )
 
-                // Фильтрация по поисковому запросу на клиенте
                 val filteredGroups = if (_state.value.searchQuery.isNotEmpty()) {
                     groups.filter { group ->
                         group.groupName.contains(
@@ -93,7 +112,6 @@ class GroupsSearchViewModel(
     fun loadAllGroups() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-
             try {
                 val groups = repository.getGroups()
                 _state.update {
@@ -134,9 +152,14 @@ class GroupsSearchViewModel(
 }
 
 class GroupsSearchViewModelFactory(
-    private val repository: ScheduleRepository
+    private val repository: ScheduleRepository,
+    private val favoritesRepository: FavoritesRepository
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return GroupsSearchViewModel(repository) as T
+        if (modelClass.isAssignableFrom(GroupsSearchViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return GroupsSearchViewModel(repository, favoritesRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

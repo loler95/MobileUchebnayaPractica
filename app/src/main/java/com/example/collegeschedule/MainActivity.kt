@@ -27,6 +27,12 @@ import com.example.collegeschedule.ui.groups.GroupsSearch
 import com.example.collegeschedule.ui.theme.CollegeScheduleTheme
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import androidx.compose.ui.platform.LocalContext
+import com.example.collegeschedule.data.repository.FavoritesRepository
+import com.example.collegeschedule.ui.favorites.FavoritesScreen
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Home
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,16 +48,24 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CollegeScheduleApp() {
     var currentDestination by rememberSaveable {
-        mutableStateOf(AppDestinations.HOME) }
+        mutableStateOf(AppDestinations.HOME)
+    }
+
+    val context = LocalContext.current
+
+    // Инициализация репозиториев
+    val favoritesRepository = remember {
+        FavoritesRepository(context)
+    }
 
     val retrofit = remember {
         Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:5193/") // localhost для Android Emulator
+            .baseUrl("http://10.0.2.2:5193/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
     val api = remember { retrofit.create(ScheduleApi::class.java) }
-    val repository = remember { ScheduleRepository(api) }
+    val scheduleRepository = remember { ScheduleRepository(api) }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -73,13 +87,23 @@ fun CollegeScheduleApp() {
     {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
-                AppDestinations.HOME -> GroupsSearch(
-                    modifier = Modifier.padding(innerPadding),
-                    repository = repository
-                )
-                AppDestinations.FAVORITES ->
-                    Text("Избранные группы",
-                        modifier = Modifier.padding(innerPadding))
+                AppDestinations.HOME -> {
+                    GroupsSearch(
+                        modifier = Modifier.padding(innerPadding),
+                        repository = scheduleRepository,
+                        favoritesRepository = favoritesRepository
+                    )
+                }
+
+                AppDestinations.FAVORITES -> {
+                    FavoritesScreen(
+                        favoritesRepository = favoritesRepository,
+                        scheduleRepository = scheduleRepository,
+                        onBackClick = {
+                            currentDestination = AppDestinations.HOME
+                        }
+                    )
+                }
             }
         }
     }
@@ -88,6 +112,6 @@ enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
 ) {
-    HOME("Home", Icons.Default.Home),
-    FAVORITES("Favorites", Icons.Default.Favorite)
+    HOME("Группы", Icons.Default.Home),
+    FAVORITES("Избранное", Icons.Default.Star)
 }
